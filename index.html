@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>법인카드 사용 분석 플랫폼</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <span class="brand-icon">💳</span>
+    <span class="brand-name">법인카드 분석 플랫폼</span>
+  </div>
+  <nav class="tabs" id="tabNav">
+    <button class="tab-btn active" data-tab="upload">업로드</button>
+    <button class="tab-btn" data-tab="dashboard" disabled>대시보드</button>
+    <button class="tab-btn" data-tab="dept" disabled>부서·사용자</button>
+    <button class="tab-btn" data-tab="category" disabled>카테고리·가맹점</button>
+    <button class="tab-btn" data-tab="trend" disabled>기간별 추이</button>
+    <button class="tab-btn" data-tab="anomaly" disabled>이상 사용 탐지</button>
+    <button class="tab-btn" data-tab="table" disabled>전체 내역</button>
+  </nav>
+  <div class="header-actions">
+    <span id="dataSummary" class="data-summary"></span>
+    <button id="resetDataBtn" class="btn btn-ghost" hidden>새 파일 업로드</button>
+  </div>
+</header>
+
+<div id="filterBar" class="filter-bar" hidden>
+  <div class="filter-group">
+    <label>기간</label>
+    <input type="date" id="filterStart">
+    <span>~</span>
+    <input type="date" id="filterEnd">
+  </div>
+  <div class="filter-group">
+    <label>부서</label>
+    <select id="filterDept" multiple></select>
+  </div>
+  <div class="filter-group">
+    <label>카테고리</label>
+    <select id="filterCategory" multiple></select>
+  </div>
+  <div class="filter-group">
+    <label>검색</label>
+    <input type="text" id="filterSearch" placeholder="사용자, 가맹점 검색">
+  </div>
+  <div class="filter-group filter-actions">
+    <button id="applyFilterBtn" class="btn btn-primary">적용</button>
+    <button id="clearFilterBtn" class="btn btn-ghost">초기화</button>
+  </div>
+</div>
+
+<main id="app">
+
+  <!-- UPLOAD TAB -->
+  <section id="tab-upload" class="tab-panel active">
+    <div class="upload-card">
+      <h1>법인카드 사용 내역을 업로드하세요</h1>
+      <p class="sub">CSV 또는 Excel(xlsx) 파일을 업로드하면 부서·사용자별 지출, 카테고리 분석, 기간별 추이, 이상 사용 탐지까지 자동으로 분석합니다.</p>
+
+      <div id="dropZone" class="drop-zone">
+        <div class="drop-zone-icon">📄</div>
+        <div class="drop-zone-text">파일을 드래그하거나 클릭해서 선택하세요</div>
+        <div class="drop-zone-sub">.csv, .xlsx, .xls 지원</div>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" hidden>
+      </div>
+
+      <div class="upload-alt">
+        <span>또는</span>
+        <button id="sampleDataBtn" class="btn btn-secondary">샘플 데이터로 체험하기</button>
+      </div>
+
+      <div id="uploadError" class="alert alert-error" hidden></div>
+    </div>
+
+    <!-- Column mapping step -->
+    <div id="mappingCard" class="upload-card" hidden>
+      <h2>열 매핑 확인</h2>
+      <p class="sub">파일의 각 열이 어떤 항목에 해당하는지 확인하고 필요하면 수정하세요. (거래일자, 금액은 필수입니다)</p>
+      <div id="mappingFields" class="mapping-fields"></div>
+      <div id="mappingPreview" class="mapping-preview"></div>
+      <div class="mapping-actions">
+        <button id="confirmMappingBtn" class="btn btn-primary">분석 시작</button>
+        <button id="cancelMappingBtn" class="btn btn-ghost">취소</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- DASHBOARD TAB -->
+  <section id="tab-dashboard" class="tab-panel">
+    <div class="kpi-grid" id="kpiGrid"></div>
+    <div class="grid-2">
+      <div class="card">
+        <h3>부서별 지출 TOP 10</h3>
+        <canvas id="chartDeptOverview"></canvas>
+      </div>
+      <div class="card">
+        <h3>카테고리별 지출 비중</h3>
+        <canvas id="chartCategoryOverview"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h3>월별 지출 추이</h3>
+      <canvas id="chartTrendOverview"></canvas>
+    </div>
+  </section>
+
+  <!-- DEPT/USER TAB -->
+  <section id="tab-dept" class="tab-panel">
+    <div class="card">
+      <h3>부서별 지출 현황</h3>
+      <canvas id="chartDeptFull"></canvas>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header-row">
+          <h3>사용자별 지출 TOP 15</h3>
+          <select id="deptDrilldown"><option value="">전체 부서</option></select>
+        </div>
+        <canvas id="chartUserFull"></canvas>
+      </div>
+      <div class="card">
+        <h3>부서별 상세 테이블</h3>
+        <div class="table-wrap" id="deptTableWrap"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORY/MERCHANT TAB -->
+  <section id="tab-category" class="tab-panel">
+    <div class="grid-2">
+      <div class="card">
+        <h3>카테고리별 지출</h3>
+        <canvas id="chartCategoryFull"></canvas>
+      </div>
+      <div class="card">
+        <h3>가맹점 TOP 15</h3>
+        <canvas id="chartMerchantFull"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h3>카테고리별 상세 테이블</h3>
+      <div class="table-wrap" id="categoryTableWrap"></div>
+    </div>
+  </section>
+
+  <!-- TREND TAB -->
+  <section id="tab-trend" class="tab-panel">
+    <div class="card">
+      <h3>월별 지출 추이</h3>
+      <canvas id="chartTrendFull"></canvas>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h3>요일별 지출 패턴</h3>
+        <canvas id="chartWeekday"></canvas>
+      </div>
+      <div class="card">
+        <h3>월별 상세 테이블</h3>
+        <div class="table-wrap" id="trendTableWrap"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANOMALY TAB -->
+  <section id="tab-anomaly" class="tab-panel">
+    <div class="kpi-grid" id="anomalyKpiGrid"></div>
+    <div class="card">
+      <div class="card-header-row">
+        <h3>이상 사용 의심 거래</h3>
+        <span class="hint">통계적 이상치(카테고리 평균 대비), 주말 사용, 중복 의심 거래를 자동 탐지합니다</span>
+      </div>
+      <div class="table-wrap" id="anomalyTableWrap"></div>
+    </div>
+  </section>
+
+  <!-- TABLE TAB -->
+  <section id="tab-table" class="tab-panel">
+    <div class="card">
+      <div class="card-header-row">
+        <h3>전체 거래 내역 <span id="tableCount" class="hint"></span></h3>
+        <button id="exportCsvBtn" class="btn btn-secondary">CSV로 내보내기</button>
+      </div>
+      <div class="table-wrap" id="fullTableWrap"></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
